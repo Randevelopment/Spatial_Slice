@@ -1,6 +1,5 @@
 
 pub struct Space<T> {
-
     data: Box<[T]>,
     width: usize,
     height: usize
@@ -28,18 +27,6 @@ impl<T> Space<T> {
         self.height
     }
 
-    pub fn as_slice(&self) -> SpaceSlice<T> {
-        SpaceSlice {
-            parent: self,
-
-            x: 0,
-            y: 0,
-
-            width: self.width,
-            height: self.height
-        }
-    }
-
     pub fn as_slice_mut(&mut self) -> SpaceSliceMut<T> {
         SpaceSliceMut {
             parent: self,
@@ -53,19 +40,18 @@ impl<T> Space<T> {
     }
 }
 
-pub struct SpaceSlice<T> {
-
-    parent: *const Space<T>,
-
-    x: usize,
-    y: usize,
-
-    width: usize,
-    height: usize
+pub enum PostioningType {
+    Absolute, Relative
 }
 
-impl<T> SpaceSlice<T> {
+pub struct HorizontalSplit<T> {
+    left: T,
+    right: T
+}
 
+pub struct VerticalSplit<T> {
+    above: T,
+    below: T
 }
 
 pub struct SpaceSliceMut<T> {
@@ -79,9 +65,51 @@ pub struct SpaceSliceMut<T> {
     height: usize
 }
 
-impl<T> SpaceSliceMut<T>
-    where T: Clone {
+impl<T> SpaceSliceMut<T> {
+    pub fn split_horizontal(self, pos_type: PostioningType, x_value: usize) -> HorizontalSplit<SpaceSliceMut<T>> {
+        let left_x = self.x;
+
+        let right_x = match pos_type {
+            PostioningType::Absolute => x_value,
+            PostioningType::Relative => self.x + x_value
+        };
+        
+        let left_width = right_x - left_x;
+        let right_width = self.width - left_width;
+
+        HorizontalSplit {
+            left: SpaceSliceMut {
+                parent: self.parent,
+                
+                x: left_x,
+                width: left_width,
+                
+                y: self.y,
+                height: self.height
+            },
+            right: SpaceSliceMut {
+                parent: self.parent,
+                
+                x: right_x,
+                width: right_width,
+
+                y: self.y,
+                height: self.height
+            }
+        }
+    }
     
+    pub fn split_vertical(self, pos_type: PostioningType, y_value: usize) -> VerticalSplit<SpaceSliceMut<T>> {
+        match pos_type {
+            PostioningType::Absolute => {
+
+            },
+
+            PostioningType::Relative => {
+
+            }
+        }
+    }
 }
 
 #[cfg(test)]
