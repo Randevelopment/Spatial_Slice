@@ -10,6 +10,7 @@ pub struct Space<T> {
 impl<T> Space<T> {
     /// Creates a space full of the provided value,
     /// with the provided dimensions
+    #[inline]
     pub fn new(value: T, width: usize, height: usize) -> Self
         where T: Clone {
 
@@ -65,6 +66,7 @@ impl<T> Space<T> {
     }
 
     /// Create a mutable slice representing the entire space
+    #[inline]
     pub fn as_slice_mut(&mut self) -> SpaceSliceMut<T> {
         SpaceSliceMut {
             parent: self,
@@ -115,6 +117,17 @@ pub struct SpaceSliceMut<T> {
 }
 
 impl<T> SpaceSliceMut<T> {
+
+    #[inline]
+    pub fn width(&self) -> usize {
+        self.width
+    }
+
+    #[inline]
+    pub fn height(&self) -> usize {
+        self.height
+    }
+
     #[inline]
     pub fn convert_coord(&self, pos_type: PostioningType, x: usize, y: usize) -> Option<(usize, usize)> {
         match pos_type {
@@ -157,6 +170,7 @@ impl<T> SpaceSliceMut<T> {
         }
     }
 
+    #[inline]
     pub fn split_horizontal(self, pos_type: PostioningType, x_value: usize) -> HorizontalSplit<SpaceSliceMut<T>> {
         let left_x = self.x;
 
@@ -194,6 +208,7 @@ impl<T> SpaceSliceMut<T> {
         }
     }
     
+    #[inline]
     pub fn split_vertical(self, pos_type: PostioningType, y_value: usize) -> VerticalSplit<SpaceSliceMut<T>> {
         let above_y = self.y;
 
@@ -235,8 +250,16 @@ impl<T> SpaceSliceMut<T> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
+    fn simple_test() {
+        let mut space = Space::new(1u32, 4, 4);
+        let space_slice = space.as_slice_mut();
+
+        let HorizontalSplit { left, right } = space_slice.split_horizontal(PostioningType::Absolute, 2);
+
+        assert_eq!(left.width(), 2);
+        assert_eq!(right.width(), 2);
     }
 }
