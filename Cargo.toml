@@ -3,5 +3,8 @@ name = "spatial_slice"
 version = "0.1.0"
 authors = ["kyleb <kylebrw@gmail.com>"]
 edition = "2018"
+license = "MIT"
+description = "Spacial Slice is a simple Rust crate for when you want to store two dimensional Sized data in linear memory."
+
 
 [dependencies]
