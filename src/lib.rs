@@ -1,3 +1,4 @@
+use std::marker::PhantomData;
 
 /// A Space represents a rectangular 2 dimensional array of contiguous
 /// dynamically allocated memory
@@ -67,9 +68,10 @@ impl<T> Space<T> {
 
     /// Create a mutable slice representing the entire space
     #[inline]
-    pub fn as_slice_mut(&mut self) -> SpaceSliceMut<T> {
+    pub fn as_slice_mut(&mut self) -> SpaceSliceMut<'_, T> {
         SpaceSliceMut {
             parent: self,
+            phantom: PhantomData,
 
             x: 0,
             y: 0,
@@ -105,9 +107,10 @@ pub struct VerticalSplit<T> {
 
 /// The data structure that represents a mutable view of a subspace
 /// of some parent space
-pub struct SpaceSliceMut<T> {
+pub struct SpaceSliceMut<'a, T> {
     
     parent: *mut Space<T>,
+    phantom: PhantomData<&'a mut Space<T>>,
 
     x: usize,
     y: usize,
@@ -116,7 +119,7 @@ pub struct SpaceSliceMut<T> {
     height: usize
 }
 
-impl<T> SpaceSliceMut<T> {
+impl<'a, T> SpaceSliceMut<'a, T> {
 
     #[inline]
     pub fn width(&self) -> usize {
@@ -171,7 +174,7 @@ impl<T> SpaceSliceMut<T> {
     }
 
     #[inline]
-    pub fn split_horizontal(self, pos_type: PostioningType, x_value: usize) -> HorizontalSplit<SpaceSliceMut<T>> {
+    pub fn split_horizontal(self, pos_type: PostioningType, x_value: usize) -> HorizontalSplit<SpaceSliceMut<'a, T>> {
         let left_x = self.x;
 
         let right_x = match pos_type {
@@ -189,6 +192,7 @@ impl<T> SpaceSliceMut<T> {
         HorizontalSplit {
             left: SpaceSliceMut {
                 parent: self.parent,
+                phantom: PhantomData,
                 
                 x: left_x,
                 width: left_width,
@@ -198,6 +202,7 @@ impl<T> SpaceSliceMut<T> {
             },
             right: SpaceSliceMut {
                 parent: self.parent,
+                phantom: PhantomData,
                 
                 x: right_x,
                 width: right_width,
@@ -209,7 +214,7 @@ impl<T> SpaceSliceMut<T> {
     }
     
     #[inline]
-    pub fn split_vertical(self, pos_type: PostioningType, y_value: usize) -> VerticalSplit<SpaceSliceMut<T>> {
+    pub fn split_vertical(self, pos_type: PostioningType, y_value: usize) -> VerticalSplit<SpaceSliceMut<'a, T>> {
         let above_y = self.y;
 
         let below_y = match pos_type {
@@ -227,6 +232,7 @@ impl<T> SpaceSliceMut<T> {
         VerticalSplit {
             above: SpaceSliceMut {
                 parent: self.parent,
+                phantom: PhantomData,
                 
                 y: above_y,
                 height: above_height,
@@ -237,6 +243,7 @@ impl<T> SpaceSliceMut<T> {
 
             below: SpaceSliceMut {
                 parent: self.parent,
+                phantom: PhantomData,
                 
                 y: below_y,
                 height: below_height,
@@ -253,7 +260,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn simple_test() {
+    fn horizontal_split_width_check() {
         let mut space = Space::new(1u32, 4, 4);
         let space_slice = space.as_slice_mut();
 
@@ -261,5 +268,16 @@ mod tests {
 
         assert_eq!(left.width(), 2);
         assert_eq!(right.width(), 2);
+    }
+    
+    #[test]
+    fn vertical_split_height_check() {
+        let mut space = Space::new(1u32, 4, 4);
+        let space_slice = space.as_slice_mut();
+
+        let VerticalSplit { above, below } = space_slice.split_vertical(PostioningType::Absolute, 2);
+
+        assert_eq!(above.height(), 2);
+        assert_eq!(below.height(), 2);
     }
 }
