@@ -1,10 +1,22 @@
-use std::marker::PhantomData;
+mod primitives;
+
+mod subspace;
+mod subspace_mut;
+
+pub use primitives::*;
+pub use subspace::*;
+pub use subspace_mut::*;
 
 /// A Space represents a rectangular 2 dimensional array of contiguous
 /// dynamically allocated memory
 pub struct Space<T> {
+    /// The linear memory that the data is stored in
     data: Box<[T]>,
+
+    /// The width (X direction) of the Space
     width: usize,
+
+    /// The height (Y direction) of the Space
     height: usize
 }
 
@@ -43,11 +55,13 @@ impl<T> Space<T> {
         }
     }
 
+    /// The width (X direction) of the Space
     #[inline]
     pub fn width(&self) -> usize {
         self.width
     }
 
+    /// The height (Y direction) of the Space
     #[inline]
     pub fn height(&self) -> usize {
         self.height
@@ -87,190 +101,36 @@ impl<T> Space<T> {
         }
     }
 
-    /// Create a mutable slice representing the entire space
+    /// Sets the value for every position in the space
+    /// based on its position
+    /// 
+    /// This function makes no guarantees about the order this occurs in
     #[inline]
-    pub fn as_slice_mut(&mut self) -> SpaceSliceMut<'_, T> {
-        SpaceSliceMut {
-            parent: self,
-            phantom: PhantomData,
+    pub fn map(&mut self, mapper: fn(usize, usize) -> T) {
+        let mut index = 0;
 
-            x: 0,
-            y: 0,
+        for y in 0 .. self.height {
+            for x in 0 .. self.width {
+                self.data[index] = mapper(x, y);
 
-            width: self.width,
-            height: self.height
-        }
-    }
-}
-
-/// A positioning type indicates how to interpret an X/Y coordinate in a slice
-pub enum PostioningType {
-    /// Absolute positioning indexes directly into the space that this slice references
-    Absolute, 
-
-    /// Relative positioning indexes into the slice,
-    /// it treats the slices (x,y) values as the origin (0,0)
-    /// therefore values must be offset by (x,y) to be interpretted absolutely
-    Relative
-}
-
-/// Represents a partition with left and right values
-pub struct HorizontalSplit<T> {
-    pub left: T,
-    pub right: T
-}
-
-/// Represents a partition with above and below values
-pub struct VerticalSplit<T> {
-    pub above: T,
-    pub below: T
-}
-
-/// The data structure that represents a mutable view of a subspace
-/// of some parent space
-pub struct SpaceSliceMut<'a, T> {
-    
-    parent: *mut Space<T>,
-    phantom: PhantomData<&'a mut Space<T>>,
-
-    x: usize,
-    y: usize,
-
-    width: usize,
-    height: usize
-}
-
-impl<'a, T> SpaceSliceMut<'a, T> {
-
-    #[inline]
-    pub fn width(&self) -> usize {
-        self.width
-    }
-
-    #[inline]
-    pub fn height(&self) -> usize {
-        self.height
-    }
-
-    #[inline]
-    fn convert_coord(&self, pos_type: PostioningType, x: usize, y: usize) -> Option<(usize, usize)> {
-        match pos_type {
-            PostioningType::Absolute =>  {
-                if x < self.x 
-                    || x >= self.x + self.width
-                    || y < self.y
-                    || y >= self.y + self.height {
-                    return None;
-                }
-
-                Some((x, y))
-            }
-            PostioningType::Relative => Some((self.x + x, self.y + y))
-        }
-    }
-
-    /// Creates an immutable reference to a value in this slice using 
-    /// the specified addressing mode
-    /// If the value queried is outside the slice None will be returned
-    #[inline]
-    pub fn get(&self, pos_type: PostioningType, x: usize, y: usize) -> Option<&T> {
-        let (abs_x, abs_y) = self.convert_coord(pos_type, x, y)?;
-        
-        unsafe {
-            (*self.parent).get(abs_x, abs_y)
-        }
-    }
-
-    /// Sets the value for the specified absolute position in the space
-    /// If the position specified is outside the space false is returned
-    #[inline]
-    pub fn set(&mut self, pos_type: PostioningType, x: usize, y: usize, value: T) -> bool {
-        if let Some((abs_x, abs_y)) = self.convert_coord(pos_type, x, y) {
-            unsafe {
-                (*self.parent).set(abs_x, abs_y, value)
-            }
-        } else {
-            false
-        }
-    }
-
-    #[inline]
-    pub fn split_horizontal(self, pos_type: PostioningType, x_value: usize) -> HorizontalSplit<SpaceSliceMut<'a, T>> {
-        let left_x = self.x;
-
-        let right_x = match pos_type {
-            PostioningType::Absolute => x_value,
-            PostioningType::Relative => self.x + x_value
-        };
-
-        if right_x > self.width {
-            panic!("Invalid x value ({}) provided for slice with width {}", right_x, self.width);
-        }
-        
-        let left_width = right_x - left_x;
-        let right_width = self.width - left_width;
-
-        HorizontalSplit {
-            left: SpaceSliceMut {
-                parent: self.parent,
-                phantom: PhantomData,
-                
-                x: left_x,
-                width: left_width,
-                
-                y: self.y,
-                height: self.height
-            },
-            right: SpaceSliceMut {
-                parent: self.parent,
-                phantom: PhantomData,
-                
-                x: right_x,
-                width: right_width,
-
-                y: self.y,
-                height: self.height
+                index += 1;
             }
         }
     }
-    
+
+    /// Updates the value for every position in the space
+    /// based on its previous value and it's position
+    /// 
+    /// This function makes no guarantees about the order this occurs in
     #[inline]
-    pub fn split_vertical(self, pos_type: PostioningType, y_value: usize) -> VerticalSplit<SpaceSliceMut<'a, T>> {
-        let above_y = self.y;
+    pub fn update(&mut self, updater: fn(&mut T, usize, usize)) {
+        let mut index = 0;
 
-        let below_y = match pos_type {
-            PostioningType::Absolute => y_value,
-            PostioningType::Relative => self.y + y_value
-        };
+        for y in 0 .. self.height {
+            for x in 0 .. self.width {
+                updater(&mut self.data[index], x, y);
 
-        if below_y > self.height {
-            panic!("Invalid y value ({}) provided for slice with height {}", below_y, self.height);
-        }
-        
-        let above_height = below_y - above_y;
-        let below_height = self.height - above_height;
-
-        VerticalSplit {
-            above: SpaceSliceMut {
-                parent: self.parent,
-                phantom: PhantomData,
-                
-                y: above_y,
-                height: above_height,
-                
-                x: self.x,
-                width: self.width
-            },
-
-            below: SpaceSliceMut {
-                parent: self.parent,
-                phantom: PhantomData,
-                
-                y: below_y,
-                height: below_height,
-                
-                x: self.x,
-                width: self.width
+                index += 1;
             }
         }
     }
@@ -279,28 +139,6 @@ impl<'a, T> SpaceSliceMut<'a, T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn horizontal_split_width_check() {
-        let mut space = Space::new_flat(1u32, 4, 4);
-        let space_slice = space.as_slice_mut();
-
-        let HorizontalSplit { left, right } = space_slice.split_horizontal(PostioningType::Absolute, 2);
-
-        assert_eq!(left.width(), 2);
-        assert_eq!(right.width(), 2);
-    }
-    
-    #[test]
-    fn vertical_split_height_check() {
-        let mut space = Space::new_flat(1u32, 4, 4);
-        let space_slice = space.as_slice_mut();
-
-        let VerticalSplit { above, below } = space_slice.split_vertical(PostioningType::Absolute, 2);
-
-        assert_eq!(above.height(), 2);
-        assert_eq!(below.height(), 2);
-    }
 
     #[test]
     fn new_flat_test() {
