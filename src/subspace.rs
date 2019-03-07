@@ -3,6 +3,7 @@ use crate::primitives::*;
 
 /// The data structure that represents a read-only view of a subspace
 /// of some parent space
+#[derive(Debug, Clone)]
 pub struct SubSpace<'a, T> {
     /// The space that this SubSpace is from
     parent: &'a Space<T>,
@@ -21,9 +22,9 @@ pub struct SubSpace<'a, T> {
 }
 
 impl<T> Space<T> {
-    /// Create a mutable slice representing the entire space
+    /// Create a read only slice representing the entire space
     #[inline]
-    pub fn subspace(&mut self) -> SubSpace<'_, T> {
+    pub fn as_subspace(&self) -> SubSpace<'_, T> {
         SubSpace {
             parent: self,
 
@@ -37,12 +38,13 @@ impl<T> Space<T> {
 }
 
 impl<'a, T> SubSpace<'a, T> {
-
+    /// The width (X direction) of this SubSpace
     #[inline]
     pub fn width(&self) -> usize {
         self.width
     }
 
+    /// The height (Y direction) of this SubSpace
     #[inline]
     pub fn height(&self) -> usize {
         self.height
@@ -82,7 +84,25 @@ impl<'a, T> SubSpace<'a, T> {
         self.parent.get(abs_x, abs_y)
     }
 
-    /// Splits this SubSpaceMut into two new ones horizontally
+    /// Creates an iterator that reads through the SubSpace lexicographically
+    pub fn iter(&self) -> SubSpaceIter<'_, T> {
+        SubSpaceIter {
+            parent: self,
+            x: 0,
+            y: 0
+        }
+    }
+
+    pub fn as_space(&'a self) -> Space<T>
+        where
+            T: Clone + 'static {
+
+        let mut iter = self.iter();
+
+        Space::clone_from_iter(&mut iter, self.width, self.height).unwrap()
+    }
+
+    /// Splits this SubSpace into two new ones horizontally
     /// The left subspace contains all the points in this one that have x less than the given x_value
     /// The right subspace contains all the points in this one that have x greater than or equal to the given x_value
     #[inline]
@@ -123,7 +143,7 @@ impl<'a, T> SubSpace<'a, T> {
         }
     }
     
-    /// Splits this SubSpaceMut into two new ones vertically
+    /// Splits this SubSpace into two new ones vertically
     /// The above subspace contains all the points in this one that have y less than the given y_value
     /// The below subspace contains all the points in this one that have y greater than or equal to the given y_value
     #[inline]
@@ -166,14 +186,49 @@ impl<'a, T> SubSpace<'a, T> {
     }
 }
 
+pub struct SubSpaceIter<'a, T> {
+    parent: &'a SubSpace<'a, T>,
+
+    x: usize,
+    y: usize
+}
+
+impl<'a, T> Iterator for SubSpaceIter<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let result = self.parent.get(PostioningType::Relative, self.x, self.y);
+
+        if self.x == self.parent.width - 1 {
+            self.x = 0;
+            self.y += 1;
+        } else {
+            self.x += 1;
+        }
+
+        result
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
+    fn iter_test() {
+        let space = Space::new_mapped(|x, y| 10 * (y as u32) + (x as u32), 10, 10);
+        let subspace = space.as_subspace();
+        let subspace_iter = subspace.iter().map(|v| *v);
+
+        let counter = 0 .. 100u32;
+
+        assert!(subspace_iter.eq(counter));
+    }
+
+    #[test]
     fn horizontal_split_width_check() {
-        let mut space = Space::new_flat(1u32, 4, 4);
-        let space_slice = space.subspace();
+        let space = Space::new_flat(1u32, 4, 4);
+        let space_slice = space.as_subspace();
 
         let HorizontalSplit { left, right } = space_slice.split_horizontal(PostioningType::Absolute, 2);
 
@@ -183,12 +238,24 @@ mod tests {
     
     #[test]
     fn vertical_split_height_check() {
-        let mut space = Space::new_flat(1u32, 4, 4);
-        let space_slice = space.subspace();
+        let space = Space::new_flat(1u32, 4, 4);
+        let space_slice = space.as_subspace();
 
         let VerticalSplit { above, below } = space_slice.split_vertical(PostioningType::Absolute, 2);
 
         assert_eq!(above.height(), 2);
         assert_eq!(below.height(), 2);
+    }
+
+    #[test]
+    fn clone_tests() {
+        let original = Space::new_mapped(|x, y| (x, y), 100, 100);
+
+        let cloned = original.clone();
+
+        let round_trip = original.as_subspace().as_space();
+
+        assert_eq!(original, cloned);
+        assert_eq!(original, round_trip);
     }
 }

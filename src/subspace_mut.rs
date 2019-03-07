@@ -28,7 +28,7 @@ pub struct SubSpaceMut<'a, T> {
 impl<T> Space<T> {
     /// Create a mutable slice representing the entire space
     #[inline]
-    pub fn subspace_mut(&mut self) -> SubSpaceMut<'_, T> {
+    pub fn as_subspace_mut(&mut self) -> SubSpaceMut<'_, T> {
         SubSpaceMut {
             parent: self,
             phantom: PhantomData,
@@ -198,7 +198,7 @@ mod tests {
     #[test]
     fn horizontal_split_width_check() {
         let mut space = Space::new_flat(1u32, 4, 4);
-        let space_slice = space.subspace_mut();
+        let space_slice = space.as_subspace_mut();
 
         let HorizontalSplit { left, right } = space_slice.split_horizontal(PostioningType::Absolute, 2);
 
@@ -209,7 +209,7 @@ mod tests {
     #[test]
     fn vertical_split_height_check() {
         let mut space = Space::new_flat(1u32, 4, 4);
-        let space_slice = space.subspace_mut();
+        let space_slice = space.as_subspace_mut();
 
         let VerticalSplit { above, below } = space_slice.split_vertical(PostioningType::Absolute, 2);
 

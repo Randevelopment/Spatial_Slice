@@ -9,6 +9,7 @@ pub use subspace_mut::*;
 
 /// A Space represents a rectangular 2 dimensional array of contiguous
 /// dynamically allocated memory
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct Space<T> {
     /// The linear memory that the data is stored in
     data: Box<[T]>,
@@ -34,7 +35,7 @@ impl<T> Space<T> {
         }
     }
 
-    /// Creates a space full of the provided value,
+    /// Creates a space using the provided function,
     /// with the provided dimensions
     #[inline]
     pub fn new_mapped(func: fn(usize, usize) -> T, width: usize, height: usize) -> Self
@@ -53,6 +54,57 @@ impl<T> Space<T> {
             width,
             height
         }
+    }
+
+    /// Creates a space by iterating through the given iterator
+    /// This operation fails if the provided iterator does not contain enough data
+    #[inline] 
+    pub fn from_iter<I>(iter: &mut I, width: usize, height: usize) -> Option<Self> 
+        where
+            I: Iterator<Item=T> {
+
+        let size = width * height;
+        let mut vec = Vec::with_capacity(size);
+
+        for _ in 0 .. size {
+            if let Some(element) = iter.next() {
+                vec.push(element);
+            } else {
+                return None;
+            }
+        }
+
+        Some(Space {
+            data: vec.into_boxed_slice(),
+            width,
+            height
+        })
+    }
+
+    /// Creates a space by iterating through the given iterator
+    /// This operation fails if the provided iterator does not contain enough data
+    #[inline] 
+    pub fn clone_from_iter<'a, I>(iter: &mut I, width: usize, height: usize) -> Option<Self> 
+        where
+            I: Iterator<Item=&'a T>,
+            T: Clone + 'static {
+
+        let size = width * height;
+        let mut vec = Vec::with_capacity(size);
+
+        for _ in 0 .. size {
+            if let Some(element) = iter.next() {
+                vec.push(element.clone());
+            } else {
+                return None;
+            }
+        }
+
+        Some(Space {
+            data: vec.into_boxed_slice(),
+            width,
+            height
+        })
     }
 
     /// The width (X direction) of the Space
