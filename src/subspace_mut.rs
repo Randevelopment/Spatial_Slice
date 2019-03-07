@@ -27,6 +27,14 @@ pub struct SubSpaceMut<'a, T> {
 
 impl<T> Space<T> {
     /// Create a mutable slice representing the entire space
+    /// 
+    /// Two mutable subspaces cannot coexist as that would allow data racaes
+    /// 
+    /// ```compile_fail
+    /// let space = Space::new_flat(true, 10, 10);
+    /// let subspace1 = space.as_subspace_mut();
+    /// let subspace2 = space.as_subspace_mut();
+    /// ```
     #[inline]
     pub fn as_subspace_mut(&mut self) -> SubSpaceMut<'_, T> {
         SubSpaceMut {

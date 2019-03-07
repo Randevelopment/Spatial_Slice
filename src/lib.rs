@@ -186,6 +186,11 @@ impl<T> Space<T> {
             }
         }
     }
+
+    #[inline]
+    pub fn iter(&self) -> std::slice::Iter<T> {
+        self.data.iter()
+    } 
 }
 
 #[cfg(test)]
@@ -194,7 +199,7 @@ mod tests {
 
     #[test]
     fn new_flat_test() {
-        let side_length = 100;
+        let side_length = 1000;
 
         let space = Space::new_flat(true, side_length, side_length);
 
@@ -216,5 +221,10 @@ mod tests {
                 assert_eq!(*space.get(x, y).unwrap(), (x,y));
             }
         }
+    }
+
+    #[test]
+    fn from_iter_test() {
+
     }
 }

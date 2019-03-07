@@ -248,7 +248,18 @@ mod tests {
     }
 
     #[test]
-    fn clone_tests() {
+    fn partition_test() {
+        let space = Space::new_mapped(|x, _| x < 10, 20, 20);
+        let subspace = space.as_subspace();
+
+        let HorizontalSplit { left, right } = subspace.split_horizontal(PostioningType::Absolute, 10);
+
+        assert!(left.iter().all(|v| *v));
+        assert!(right.iter().all(|v| !*v));
+    }
+
+    #[test]
+    fn clone_test() {
         let original = Space::new_mapped(|x, y| (x, y), 100, 100);
 
         let cloned = original.clone();
