@@ -153,7 +153,7 @@ impl<'a, T> SpaceSliceMut<'a, T> {
     }
 
     #[inline]
-    pub fn convert_coord(&self, pos_type: PostioningType, x: usize, y: usize) -> Option<(usize, usize)> {
+    fn convert_coord(&self, pos_type: PostioningType, x: usize, y: usize) -> Option<(usize, usize)> {
         match pos_type {
             PostioningType::Absolute =>  {
                 if x < self.x 
@@ -303,12 +303,27 @@ mod tests {
     }
 
     #[test]
-    fn new_mapped_test() {
-        let space = Space::new_mapped(|x, y| y * 10 + x, 9, 9);
+    fn new_flat_test() {
+        let side_length = 100;
 
-        for y in 0 .. 9 {
-            for x in 0 .. 9 {
-                assert_eq!(*space.get(x, y).unwrap(), y * 10 + x);
+        let space = Space::new_flat(true, side_length, side_length);
+
+        for y in 0 .. side_length {
+            for x in 0 .. side_length {
+                assert!(space.get(x, y).unwrap());
+            }
+        }
+    }
+
+    #[test]
+    fn new_mapped_test() {
+        let side_length = 100;
+
+        let space = Space::new_mapped(|x, y| (x,y), side_length, side_length);
+
+        for y in 0 .. side_length {
+            for x in 0 .. side_length {
+                assert_eq!(*space.get(x, y).unwrap(), (x,y));
             }
         }
     }
