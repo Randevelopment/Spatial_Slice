@@ -12,11 +12,32 @@ impl<T> Space<T> {
     /// Creates a space full of the provided value,
     /// with the provided dimensions
     #[inline]
-    pub fn new(value: T, width: usize, height: usize) -> Self
+    pub fn new_flat(value: T, width: usize, height: usize) -> Self
         where T: Clone {
 
         Space {
             data: vec![ value; width * height ].into_boxed_slice(),
+            width,
+            height
+        }
+    }
+
+    /// Creates a space full of the provided value,
+    /// with the provided dimensions
+    #[inline]
+    pub fn new_mapped(func: fn(usize, usize) -> T, width: usize, height: usize) -> Self
+        where T: Clone {
+
+        let mut vec = Vec::with_capacity(width * height);
+
+        for y in 0 .. height {
+            for x in 0 .. width {
+                vec.push(func(x,y));
+            }
+        }
+
+        Space {
+            data: vec.into_boxed_slice(),
             width,
             height
         }
@@ -261,7 +282,7 @@ mod tests {
 
     #[test]
     fn horizontal_split_width_check() {
-        let mut space = Space::new(1u32, 4, 4);
+        let mut space = Space::new_flat(1u32, 4, 4);
         let space_slice = space.as_slice_mut();
 
         let HorizontalSplit { left, right } = space_slice.split_horizontal(PostioningType::Absolute, 2);
@@ -272,12 +293,23 @@ mod tests {
     
     #[test]
     fn vertical_split_height_check() {
-        let mut space = Space::new(1u32, 4, 4);
+        let mut space = Space::new_flat(1u32, 4, 4);
         let space_slice = space.as_slice_mut();
 
         let VerticalSplit { above, below } = space_slice.split_vertical(PostioningType::Absolute, 2);
 
         assert_eq!(above.height(), 2);
         assert_eq!(below.height(), 2);
+    }
+
+    #[test]
+    fn new_mapped_test() {
+        let space = Space::new_mapped(|x, y| y * 10 + x, 9, 9);
+
+        for y in 0 .. 9 {
+            for x in 0 .. 9 {
+                assert_eq!(*space.get(x, y).unwrap(), y * 10 + x);
+            }
+        }
     }
 }
